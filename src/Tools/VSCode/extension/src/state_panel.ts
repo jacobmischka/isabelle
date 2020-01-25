@@ -4,7 +4,7 @@ import * as library from './library'
 import * as protocol from './protocol'
 import { Content_Provider } from './content_provider'
 import { LanguageClient } from 'vscode-languageclient';
-import { Uri, ExtensionContext, workspace, commands, window } from 'vscode'
+import { WebviewPanel, Uri, ExtensionContext, workspace, commands, window } from 'vscode'
 
 
 /* HTML content */
@@ -29,6 +29,7 @@ function decode_state(uri: Uri | undefined): number | undefined
 /* setup */
 
 let language_client: LanguageClient
+let panel: WebviewPanel
 
 export function setup(context: ExtensionContext, client: LanguageClient)
 {
@@ -42,14 +43,26 @@ export function setup(context: ExtensionContext, client: LanguageClient)
         content_provider.set_content(uri, params.content)
         content_provider.update(uri)
 
-        const existing_document =
-          workspace.textDocuments.find(document =>
-            document.uri.scheme === uri.scheme &&
-            document.uri.fragment === uri.fragment)
-        if (!existing_document) {
+        if (!panel) {
           const column = library.adjacent_editor_column(window.activeTextEditor, true)
-          commands.executeCommand("vscode.previewHtml", uri, column, "State")
+          panel = window.createWebviewPanel(
+            'isabelleState',
+            'State',
+            column
+          );
         }
+
+        panel.webview.html = `
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>State</title>
+            </head>
+            ${content_provider.provideTextDocumentContent(uri)}
+          </html>
+        `;
       }
     })
 }

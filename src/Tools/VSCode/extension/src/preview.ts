@@ -2,7 +2,7 @@
 
 import * as timers from 'timers'
 import { ViewColumn, TextDocument, TextEditor, TextDocumentContentProvider,
-  ExtensionContext, Event, EventEmitter, Uri, Position, workspace,
+  ExtensionContext, Event, EventEmitter, Uri, Position, WebviewPanel, workspace,
   window, commands } from 'vscode'
 import { LanguageClient } from 'vscode-languageclient';
 import * as library from './library'
@@ -34,6 +34,7 @@ function decode_preview(preview_uri: Uri | undefined): Uri | undefined
 /* setup */
 
 let language_client: LanguageClient
+let panel: WebviewPanel
 
 export function setup(context: ExtensionContext, client: LanguageClient)
 {
@@ -47,13 +48,25 @@ export function setup(context: ExtensionContext, client: LanguageClient)
         content_provider.set_content(preview_uri, params.content)
         content_provider.update(preview_uri)
 
-        const existing_document =
-          workspace.textDocuments.find(document =>
-            document.uri.scheme === preview_uri.scheme &&
-            document.uri.query === preview_uri.query)
-        if (!existing_document && params.column != 0) {
-          commands.executeCommand("vscode.previewHtml", preview_uri, params.column, params.label)
+        if (!panel) {
+          panel = window.createWebviewPanel(
+            'isabellePreview',
+            params.label,
+            params.column
+          );
         }
+
+        panel.webview.html = `
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>State</title>
+            </head>
+            ${content_provider.provideTextDocumentContent(preview_uri)}
+          </html>
+        `;
       }
     })
 }
